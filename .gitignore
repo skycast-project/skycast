@@ -16,3 +16,6 @@ Thumbs.db
 build*.err
 fs_build*
 *.orig
+
+__pycache__/
+*.pyc
