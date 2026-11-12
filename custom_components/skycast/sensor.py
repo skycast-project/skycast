@@ -15,6 +15,7 @@ from homeassistant.const import (
     UnitOfPressure,
     UnitOfSpeed,
     UnitOfTemperature,
+    UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -38,6 +39,7 @@ def _day_value(data: dict, idx: int, kind: str):
 @dataclass(frozen=True, kw_only=True)
 class SkycastSensor(SensorEntityDescription):
     value: Callable[[dict], float | int | None]
+    attrs: Callable[[dict], dict] | None = None
 
 
 def _w(data: dict) -> dict:
@@ -98,6 +100,65 @@ HOME_DESCRIPTIONS: tuple[SkycastSensor, ...] = (
 )
 
 
+def _bus(data: dict) -> list[dict]:
+    return (data.get("bus") or [])
+
+
+def _bus_live(data: dict) -> list[dict]:
+    items = [b for b in _bus(data) if isinstance(b.get("min"), (int, float)) and b["min"] >= 0]
+    return sorted(items, key=lambda b: b["min"])
+
+
+def _bus_nearest(data: dict) -> dict | None:
+    items = _bus_live(data)
+    return items[0] if items else None
+
+
+def _bus_next_time(data: dict):
+    b = _bus_nearest(data)
+    nxt = (b or {}).get("next") or []
+    return nxt[1] if len(nxt) > 1 else (nxt[0] if nxt else None)
+
+
+def _bus_attrs(data: dict) -> dict:
+    items = _bus_live(data)
+    return {
+        "stops": data.get("bus_stops") or [],
+        "routes": [
+            f'{b.get("num")} → {b.get("dest")}: через {b.get("min")} мин ({b.get("at")})'
+            for b in items
+        ],
+        "count": len(items),
+    }
+
+
+BUS_DESCRIPTIONS: tuple[SkycastSensor, ...] = (
+    SkycastSensor(
+        key="bus_min", name="Транспорт: через", native_unit_of_measurement=UnitOfTime.MINUTES,
+        device_class=SensorDeviceClass.DURATION, icon="mdi:bus-clock",
+        value=lambda d: (_bus_nearest(d) or {}).get("min"), attrs=_bus_attrs),
+    SkycastSensor(
+        key="bus_route", name="Транспорт: маршрут", icon="mdi:bus",
+        value=lambda d: (_bus_nearest(d) or {}).get("num")),
+    SkycastSensor(
+        key="bus_dest", name="Транспорт: направление", icon="mdi:map-marker-path",
+        value=lambda d: (_bus_nearest(d) or {}).get("dest")),
+    SkycastSensor(
+        key="bus_stop", name="Транспорт: остановка", icon="mdi:bus-stop",
+        value=lambda d: (_bus_nearest(d) or {}).get("stop")),
+    SkycastSensor(
+        key="bus_at", name="Транспорт: время", icon="mdi:clock-outline",
+        value=lambda d: (_bus_nearest(d) or {}).get("at")),
+    SkycastSensor(
+        key="bus_next", name="Транспорт: следующий", icon="mdi:clock-fast",
+        value=_bus_next_time),
+    SkycastSensor(
+        key="bus_count", name="Транспорт: рейсов в пути", icon="mdi:bus-multiple",
+        state_class=SensorStateClass.MEASUREMENT,
+        value=lambda d: len(_bus_live(d))),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: SkycastConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -111,7 +172,7 @@ async def async_setup_entry(
     )
 
     entities: list[SkycastEntity] = [
-        SkycastEntity(coordinator, d, device) for d in DESCRIPTIONS + HOME_DESCRIPTIONS
+        SkycastEntity(coordinator, d, device) for d in DESCRIPTIONS + HOME_DESCRIPTIONS + BUS_DESCRIPTIONS
     ]
 
     for item in ((coordinator.data or {}).get("sensors") or {}).get("list") or []:
@@ -180,5 +241,14 @@ class SkycastEntity(CoordinatorEntity[SkycastCoordinator], SensorEntity):
     def native_value(self):
         try:
             return self.entity_description.value(self.coordinator.data or {})
+        except Exception:  # noqa: BLE001
+            return None
+
+    @property
+    def extra_state_attributes(self):
+        if not self.entity_description.attrs:
+            return None
+        try:
+            return self.entity_description.attrs(self.coordinator.data or {})
         except Exception:  # noqa: BLE001
             return None
