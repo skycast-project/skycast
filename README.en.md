@@ -143,6 +143,11 @@ partitions_16MB.csv
 platformio.ini
 ```
 
+## Authors
+
+- **Andron65**
+- **Raven85V**
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Free to use, modify and distribute with attribution.

@@ -148,6 +148,11 @@ partitions_16MB.csv
 platformio.ini
 ```
 
+## Авторы
+
+- **Andron65**
+- **Raven85V**
+
 ## Лицензия
 
 MIT — см. [LICENSE](LICENSE). История версий — [CHANGELOG.md](CHANGELOG.md). Можно свободно использовать, изменять и распространять
