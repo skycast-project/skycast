@@ -2,7 +2,6 @@
 #include "alarm.h"
 #include "audio_engine.h"
 #include "settings.h"
-#include <SD.h>
 
 // Порядок совпадает с настройкой g_set.chimeVoice
 static const char* VOICE_FOLDERS[4] = {"22", "23", "12", "13"};
@@ -18,13 +17,8 @@ static String pathFor(int hour) {
 
 static bool play(int hour, bool night) {
   String p = pathFor(hour);
-  if (!SD.exists(p)) {
-    Serial.println("Озвучка времени: файл не найден на SD: " + p);
-    return false;
-  }
   setAudioVolume(night ? g_set.volChimeNight : g_set.volChimeDay);
-  playAudioFile(p);
-  return true;
+  return playAudioFile(p);
 }
 
 void chimeTick(const tm& t) {
@@ -41,6 +35,7 @@ void chimeTick(const tm& t) {
   if (alarmIsActive()) return;               // не перебиваем звонящий будильник
 
   if (testing) { stopAudio(); testing = false; }
+  alarmTestStop();
   if (play(t.tm_hour, night)) {
     Serial.printf("Озвучка времени: час %d, голос %d, ночь=%d\n", t.tm_hour, g_set.chimeVoice, night);
   }

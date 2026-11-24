@@ -21,6 +21,7 @@ Audio audio;
 // рабочем тесте на плате информера. Пины задаются в pins.h.
 static SPIClass sdSPI(FSPI);
 
+static bool audioReady = false;
 static bool sdOk = false;
 static AudioEventCallback externalCallback = nullptr;
 
@@ -36,7 +37,7 @@ void setAudioEventCallback(AudioEventCallback cb) {
   externalCallback = cb;
 }
 
-bool initAudio() {
+void initAudio() {
   // Подтяжка MISO к 3.3V - без неё линия может "плавать", и карта не
   // отвечает на первую команду (в логе: sdWait Wait Failed /
   // GO_IDLE_STATE failed). В рабочем тесте эта строка была.
@@ -55,26 +56,43 @@ bool initAudio() {
 
   Audio::audio_info_callback = onAudioInfo;
 
-  audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DOUT_PIN);
+  audioReady = audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DOUT_PIN);
+  if (!audioReady) {
+    Serial.println("Ошибка инициализации аудиовыхода I2S");
+    return;
+  }
   audio.setVolume(15); // 0...21, стартовая громкость по умолчанию
 
-  return sdOk;
 }
 
-void playAudioFile(const String &path) {
+static String fileError;
+
+const String& audioFileError() { return fileError; }
+
+bool playAudioFile(const String &path) {
+  fileError = "";
+  if (!audioReady) {
+    fileError = "Ошибка I2S";
+    Serial.println("Аудиовыход I2S недоступен");
+    return false;
+  }
   if (!sdOk) {
+    fileError = "Нет SD-карты";
     Serial.println("❌ Нет SD-карты - звук будильника не воспроизвести: " + path);
-    return;
+    return false;
   }
   // connecttoFS сама останавливает то, что играло раньше (файл или поток).
   if (!audio.connecttoFS(SD, path.c_str())) {
+    fileError = "Ошибка файла " + path;
     Serial.println("❌ Не удалось открыть/распознать файл на SD: " + path);
-  } else {
-    Serial.println("🔊 Играю с SD: " + path);
+    return false;
   }
+  Serial.println("🔊 Играю с SD: " + path);
+  return true;
 }
 
 bool connectToStream(const String &url) {
+  if (!audioReady) return false;
   bool ok = audio.connecttohost(url.c_str());
   if (!ok) {
     Serial.println("❌ Не удалось подключиться к потоку: " + url);
@@ -83,17 +101,17 @@ bool connectToStream(const String &url) {
 }
 
 void setAudioVolume(uint8_t volume) {
-  audio.setVolume(volume); // библиотека сама ограничивает диапазоном 0..21
+  if (audioReady) audio.setVolume(volume); // библиотека сама ограничивает диапазоном 0..21
 }
 
 void stopAudio() {
-  audio.stopSong();
+  if (audioReady) audio.stopSong();
 }
 
 bool isAudioPlaying() {
-  return audio.isRunning();
+  return audioReady && audio.isRunning();
 }
 
 void audioLoop() {
-  audio.loop();
+  if (audioReady) audio.loop();
 }

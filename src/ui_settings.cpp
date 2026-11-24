@@ -1,5 +1,6 @@
 #include "ui_settings.h"
 #include "alarm.h"
+#include "audio_engine.h"
 #include "chime.h"
 #include "settings.h"
 #include "icons.h"
@@ -343,6 +344,8 @@ static void drawTabIcon(int idx, int cx, int cy, uint16_t fg, uint16_t bg) {
   }
 }
 
+static String testError;
+
 static void drawCtl(const Ctl& c) {
   int y = (c.kind == K_LINE) ? lineY(c.row) : (c.kind == K_ICON ? iconRowY(c.row) : rowY(c.row));
   int clearH = (c.kind == K_LINE) ? 102 : (c.kind == K_ICON ? 80 : BTN_H + 8);
@@ -374,7 +377,7 @@ static void drawCtl(const Ctl& c) {
       break;
     }
     case K_ACTION: {
-      fit(c.label, 24, y + BTN_H / 2, X_MINUS - 40, C_TEXT, C_BG, textdatum_t::middle_left);
+      fit(testError.length() ? testError.c_str() : c.label, 24, y + BTN_H / 2, X_MINUS - 40, C_TEXT, C_BG, textdatum_t::middle_left);
       bool playing = (c.id == ID_TEST_CHIME) ? chimeTestActive() : alarmTestActive();
       drawButton(X_MINUS, y, X_PLUS + BTN_W - X_MINUS, BTN_H, playing ? "СТОП" : "ИГРАТЬ", false, playing);
       break;
@@ -449,7 +452,7 @@ static void drawPage() {
 }
 
 static bool inRect(int px, int py, int x, int y, int w, int h) {
-  return px >= x - PAD && px < x + w + PAD && py >= y - PAD && py < y + h + PAD;
+  return px >= x - PAD && px < x + w + PAD && py >= y - 3 && py < y + h + 3;
 }
 
 static void stepCtl(const Ctl& c, int dir) {
@@ -465,6 +468,7 @@ static void handlePress(int x, int y) {
     for (int i = 0; i < NPAGES; i++) {
       if (inRect(x, y, TAB_X0 + i * TAB_STEP, TAB_Y, TAB_W, TAB_H)) {
         if (i != pageIdx) {
+          testError = "";
           pageIdx = i;
           alarmTestStop();
           chimeTestStop();
@@ -532,13 +536,14 @@ static void handlePress(int x, int y) {
         }
       }
     } else if (c.kind == K_ACTION) {
-      if (inRect(x, y, X_MINUS, ry, X_PLUS + BTN_W - X_MINUS, BTN_H)) {
+      if (inRect(x, y, 24, ry, X_PLUS + BTN_W - 24, BTN_H)) {
         if (c.id == ID_TEST_CHIME) {
           tm tt;
           chimeTestToggle(getLocalTime(&tt, 0) ? tt.tm_hour : 12);
         } else {
           alarmTestToggle(wdayOf(selDay));
         }
+        testError = audioFileError();
         drawCtl(c);
         return;
       }
@@ -547,6 +552,7 @@ static void handlePress(int x, int y) {
 }
 
 void uiSettingsOpen() {
+  testError = "";
   pageIdx = 0;
   closeReq = false;
   wasDown = true;

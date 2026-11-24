@@ -1,7 +1,7 @@
 #include "alarm.h"
+#include "chime.h"
 #include "audio_engine.h"
 #include "settings.h"
-#include <SD.h>
 
 static const char* ALARM_FOLDER = "/alarms";
 static const uint32_t RAMP_SECONDS = 15;     // за сколько секунд звук доходит до заданной громкости
@@ -24,13 +24,8 @@ static String pathFor(int track) {
 // Одна ошибка в лог, без повторов
 static bool startSound(int track, uint8_t startVol) {
   String p = pathFor(track);
-  if (!SD.exists(p)) {
-    Serial.println("Будильник: файл не найден на SD: " + p);
-    return false;
-  }
   setAudioVolume(startVol);
-  playAudioFile(p);
-  return true;
+  return playAudioFile(p);
 }
 
 // Громкость с плавным нарастанием: через RAMP_SECONDS достигает цели
@@ -51,6 +46,7 @@ void alarmTick(const tm& t) {
         key != lastTriggerKey) {
       lastTriggerKey = key;
       Serial.printf("Будильник сработал (день %d, мелодия %d)\n", wd, g_set.alarmTrack[wd]);
+      chimeTestStop();
       if (testing) { stopAudio(); testing = false; }
       if (startSound(g_set.alarmTrack[wd], rampedVolume(0))) {
         curDay = wd;

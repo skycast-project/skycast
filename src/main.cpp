@@ -209,7 +209,7 @@ void setup() {
   initSensor();
   uiAnimInit();
   moonInit();          // анимированные иконки из LittleFS (если залит набор)           // BME280/BMP280 (если заданы пины в pins.h)
-  initAudio();            // SD + PCM5102; без SD будильник молчит, остальное работает
+  initAudio();
 
   gfx.init();
   gfx.setRotation(LCD_ROTATION);
@@ -268,6 +268,48 @@ void loop() {
 
   // ---------- экран настроек ----------
   static uint32_t lastTouch = 0;
+  static uint32_t lastScheduleTick = 0;
+  if (now - lastScheduleTick >= 1000) {
+    lastScheduleTick = now;
+    tm t;
+    if (getLocalTime(&t, 0)) {
+      alarmTick(t);
+      chimeTick(t);
+    }
+  }
+
+  // ---------- сработавший будильник: показываем экран, касание выключает ----------
+  static bool alarmShown = false;
+  bool alarmNow = alarmIsActive();
+  if (alarmNow != alarmShown) {
+    alarmShown = alarmNow;
+    if (alarmNow) {
+      if (inSettings) {
+        settingsSave();
+        inSettings = false;
+      }
+      int h, m;
+      alarmInfo(h, m);
+      uiAlarmShow(h, m);
+      lastTouch = now;
+      brightnessSetPercent(g_set.brDay);   // разбудить - экран на дневную яркость
+      telegramNotifyAlarm(h, m);
+    } else {
+      brightnessAuto();
+      restoreScreen();
+      lastTouch = millis();
+    }
+  }
+  if (alarmNow) {
+    int32_t ax, ay;
+    if (gfx.getTouch(&ax, &ay) && now - lastTouch > 800) {
+      lastTouch = now;
+      alarmStop();
+    }
+    delay(2);
+    return;
+  }
+
   if (inSettings) {
     if (!uiSettingsLoop()) {
       inSettings = false;
@@ -330,39 +372,8 @@ void loop() {
       if (g_set.clockAtNight && !alarmIsActive()) setMode(n ? MODE_CLOCK : MODE_MAIN);
     }
 
-    tm t;
-    if (getLocalTime(&t, 0)) {
-      alarmTick(t);
-      chimeTick(t);
-    }
   }
 
-  // ---------- сработавший будильник: показываем экран, касание выключает ----------
-  static bool alarmShown = false;
-  bool alarmNow = alarmIsActive();
-  if (alarmNow != alarmShown) {
-    alarmShown = alarmNow;
-    if (alarmNow) {
-      int h, m;
-      alarmInfo(h, m);
-      uiAlarmShow(h, m);
-      brightnessSetPercent(g_set.brDay);   // разбудить - экран на дневную яркость
-      telegramNotifyAlarm(h, m);
-    } else {
-      brightnessAuto();
-      restoreScreen();
-      lastTouch = millis();
-    }
-  }
-  if (alarmNow) {
-    int32_t ax, ay;
-    if (gfx.getTouch(&ax, &ay) && now - lastTouch > 800) {
-      lastTouch = now;
-      alarmStop();
-    }
-    delay(2);
-    return;
-  }
 
   // диагностика набора иконок (один раз)
   static bool animMsg = false;
