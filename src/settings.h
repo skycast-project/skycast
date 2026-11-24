@@ -95,6 +95,7 @@ static const char* const CLOCK_LAYOUT_NAMES[CLOCK_LAYOUT_COUNT] = {"1", "2"};
 extern uint8_t g_clockLayout;
 
 void settingsSanitize(Settings& s);   // привести значения к допустимым
+extern bool g_boardV10;
 void settingsLoad();
 void settingsSave();
 

@@ -6,6 +6,7 @@
 #include "icons.h"            // наборы иконок (значение хранится отдельным ключом NVS)
 
 Settings g_set;
+bool g_boardV10 = false;
 uint8_t g_clockFont = 0;
 uint8_t g_clockLayout = 1;   // по умолчанию - дата сверху
 uint8_t g_iconStyle = 0;     // набор иконок: 0 - мультяшный (см. icons.h)
@@ -60,6 +61,7 @@ void settingsLoad() {
   g_set = def;
   Preferences p;
   if (!p.begin(NVS_NS, true)) return;
+  g_boardV10 = p.getBool("boardV10", false);
   g_clockFont = p.getUChar("clkfont", 0);
   if (g_clockFont >= CLOCK_FONT_COUNT) g_clockFont = 0;
   g_clockLayout = p.getUChar("clklay", 1);
@@ -84,6 +86,7 @@ void settingsLoad() {
 void settingsSave() {
   Preferences p;
   if (!p.begin(NVS_NS, false)) return;
+  p.putBool("boardV10", g_boardV10);
   p.putBytes(NVS_KEY, &g_set, sizeof(g_set));
   p.putUChar("clkfont", g_clockFont);
   p.putUChar("clklay", g_clockLayout);

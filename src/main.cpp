@@ -209,6 +209,7 @@ void setup() {
   initSensor();
   uiAnimInit();
   moonInit();          // анимированные иконки из LittleFS (если залит набор)           // BME280/BMP280 (если заданы пины в pins.h)
+  if (g_boardV10) gfx._panel.setTouch(nullptr);  // GPIO19 is reserved for I2S on V1.0.
   initAudio();
 
   gfx.init();

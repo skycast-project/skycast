@@ -177,6 +177,11 @@ static String buildPage(const String& notice) {
 
   // --- звук ---
   h += F("<fieldset><legend>Звук</legend>");
+  String rev = "<select name='boardRev'>";
+  rev += String("<option value='11'") + (g_boardV10 ? "" : " selected") + ">V1.1 (GPIO0)</option>";
+  rev += String("<option value='10'") + (g_boardV10 ? " selected" : "") + ">V1.0 (GPIO19)</option></select>";
+  h += row("Ревизия платы ESP32-8048S070", rev);
+  h += "<p class='hint'>Смена ревизии перезапустит станцию. В режиме V1.0 GPIO19 занят звуком, поэтому сенсор отключён. Вернуть V1.1 можно здесь.</p>";
   h += row("Громкость будильника, день (0-21)", numField("volAlarmDay", s.volAlarmDay, 0, 21));
   h += row("Громкость будильника, ночь (0-21)", numField("volAlarmNight", s.volAlarmNight, 0, 21));
   h += row("Автостоп будильника, мин", numField("autoStop", s.alarmAutoStopMin, 1, 60));
@@ -322,6 +327,11 @@ static void handleSave(AsyncWebServerRequest* r) {
   int tz = I("tz", s.tzHours, -12, 14);
   if (tz != s.tzHours) { s.tzHours = tz; needRestart = true; }
 
+  const String rev = P("boardRev");
+  if ((rev == "10" || rev == "11") && g_boardV10 != (rev == "10")) {
+    g_boardV10 = (rev == "10");
+    needRestart = true;
+  }
   settingsSanitize(s);
   g_set = s;
   settingsSave();

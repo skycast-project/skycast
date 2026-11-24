@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <SD.h>
 #include "pins.h"
+#include "settings.h"
 
 // ============================================================
 // ОБЪЕДИНЁННЫЙ движок на schreibfaul1/ESP32-audioI2S.
@@ -56,7 +57,9 @@ void initAudio() {
 
   Audio::audio_info_callback = onAudioInfo;
 
-  audioReady = audio.setPinout(I2S_BCLK_PIN, I2S_LRC_PIN, I2S_DOUT_PIN);
+  const int bclk = g_boardV10 ? I2S_BCLK_V10_PIN : I2S_BCLK_V11_PIN;
+  Serial.printf("I2S BCLK: GPIO%d\n", bclk);
+  audioReady = audio.setPinout(bclk, I2S_LRC_PIN, I2S_DOUT_PIN);
   if (!audioReady) {
     Serial.println("Ошибка инициализации аудиовыхода I2S");
     return;

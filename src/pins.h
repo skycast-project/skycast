@@ -13,7 +13,8 @@
 #define SD_MISO_PIN  13
 
 // I2S -> PCM5102 (пины из рабочих настроек MiniWebRadio; GPIO 0 - BCLK)
-#define I2S_BCLK_PIN 0
+#define I2S_BCLK_V11_PIN 0
+#define I2S_BCLK_V10_PIN 19
 #define I2S_LRC_PIN  18
 #define I2S_DOUT_PIN 17
 
